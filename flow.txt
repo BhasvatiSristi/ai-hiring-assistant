@@ -1,0 +1,10 @@
+1. greeting
+2. name
+3. email
+4. phone
+5. location
+6. experience
+7. role
+8. tech_stack
+9. technical_questions
+10. end
