@@ -1,3 +1,5 @@
+This is the file that sows how the interview happens step by step
+
 1. greeting
 2. name
 3. email
