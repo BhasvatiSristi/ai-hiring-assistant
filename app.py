@@ -1,11 +1,34 @@
 import streamlit as st
 import time
 import json
+import re
 from datetime import datetime
 from llm import generate_technical_questions
 
+# ---------------------------
+# Page Setup
+# ---------------------------
 st.set_page_config(page_title="TalentScout – Hiring Assistant", layout="wide")
 st.title("🤖 TalentScout – Hiring Assistant")
+
+# ---------------------------
+# Validators
+# ---------------------------
+def is_valid_email(email):
+    return re.match(r"[^@]+@[^@]+\.[^@]+", email)
+
+def is_valid_phone(phone):
+    return phone.isdigit() and 10 <= len(phone) <= 12
+
+def is_valid_experience(exp):
+    try:
+        float(exp)
+        return True
+    except:
+        return False
+
+def is_valid_text(text):
+    return bool(re.match(r"^[A-Za-z .-]{2,}$", text.strip()))
 
 # ---------------------------
 # Session State
@@ -38,8 +61,11 @@ if "current_q" not in st.session_state:
 if "completed" not in st.session_state:
     st.session_state.completed = False
 
+if "tech_loading" not in st.session_state:
+    st.session_state.tech_loading = False
+
 # ---------------------------
-# Interview flow
+# Interview Flow
 # ---------------------------
 stages = ["name", "email", "phone", "location", "experience", "role", "tech_stack", "technical", "end"]
 
@@ -80,14 +106,14 @@ def finalize_interview():
         st.session_state.stage = "end"
 
 # ---------------------------
-# Display chat
+# Display Chat
 # ---------------------------
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
 # ---------------------------
-# Delayed assistant reply
+# Delayed Assistant Reply
 # ---------------------------
 if st.session_state.waiting_for_reply:
     with st.spinner("TalentScout is thinking..."):
@@ -103,7 +129,7 @@ if st.session_state.waiting_for_reply:
     st.rerun()
 
 # ---------------------------
-# Initial greeting
+# Initial Greeting
 # ---------------------------
 if len(st.session_state.messages) == 0:
     intro = "Hello! I'm TalentScout, your AI hiring assistant.\n\n" + questions["name"]
@@ -128,43 +154,56 @@ if user_input:
 
     st.session_state.messages.append({"role": "user", "content": user_input})
 
+    reply = None
+
     # Technical interview mode
     if st.session_state.stage == "technical":
-        st.session_state.current_q += 1
-
-        if st.session_state.current_q < len(st.session_state.tech_questions):
-            reply = st.session_state.tech_questions[st.session_state.current_q]
-        else:
-            finalize_interview()
-            reply = "Thank you for completing the technical interview. We will be in touch."
-
-    else:
-        # Save normal fields
-        if st.session_state.stage in st.session_state.candidate:
-            st.session_state.candidate[st.session_state.stage] = user_input
-            go_next()
-
-        if st.session_state.stage in questions:
-            reply = questions[st.session_state.stage]
-
-        elif st.session_state.stage == "technical":
-            # First show loading message
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": "Please wait while we prepare your technical interview questions..."
-            })
-            
+        if st.session_state.tech_loading:
             tech = st.session_state.candidate["tech_stack"]
-
-            # Generate questions
             st.session_state.tech_questions = generate_technical_questions(tech)
             st.session_state.current_q = 0
-
-            # Ask first question
+            st.session_state.tech_loading = False
             reply = st.session_state.tech_questions[0]
-
         else:
-            reply = "Thank you for applying."
+            st.session_state.current_q += 1
+            if st.session_state.current_q < len(st.session_state.tech_questions):
+                reply = st.session_state.tech_questions[st.session_state.current_q]
+            else:
+                finalize_interview()
+                reply = "Thank you for completing the technical interview. We will be in touch."
+
+    else:
+        # Validation
+        if st.session_state.stage == "email" and not is_valid_email(user_input):
+            reply = "Please enter a valid email address."
+        elif st.session_state.stage == "phone" and not is_valid_phone(user_input):
+            reply = "Please enter a valid phone number."
+        elif st.session_state.stage == "experience" and not is_valid_experience(user_input):
+            reply = "Please enter your years of experience as a number."
+        elif st.session_state.stage in ["role", "location"] and not is_valid_text(user_input):
+            reply = f"Please enter a valid {st.session_state.stage}."
+        else:
+            if st.session_state.stage in st.session_state.candidate:
+                st.session_state.candidate[st.session_state.stage] = user_input
+                go_next()
+
+            if st.session_state.stage in questions:
+                reply = questions[st.session_state.stage]
+            elif st.session_state.stage == "technical":
+                # Show loading message once
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": "Please wait while we prepare your technical interview questions..."
+                })
+
+                # Generate questions
+                tech = st.session_state.candidate["tech_stack"]
+                st.session_state.tech_questions = generate_technical_questions(tech)
+                st.session_state.current_q = 0
+
+                # Ask first technical question
+                reply = st.session_state.tech_questions[0]
+
 
     st.session_state.pending_reply = reply
     st.session_state.waiting_for_reply = True
