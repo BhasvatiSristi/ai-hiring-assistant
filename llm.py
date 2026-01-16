@@ -1,13 +1,17 @@
 import json
+import os
 from openai import OpenAI
+from dotenv import load_dotenv
 
-client = OpenAI()
+load_dotenv()
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def generate_technical_questions(tech_stack: str):
     prompt = f"""
 You are a technical interviewer.
 
-Generate 5 technical interview questions based on the following tech stack:
+Generate 3-5 technical interview questions based on the following tech stack:
 {tech_stack}
 
 IMPORTANT:

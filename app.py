@@ -112,9 +112,7 @@ def finalize_interview():
             requests.post(
                 "https://hook.eu1.make.com/wk9cdh1cegely8ujx241eit4631p88ah",
                 json={
-                    "name": st.session_state.candidate["name"],
-                    "email": st.session_state.candidate["email"],
-                    "role": st.session_state.candidate["role"]
+                    "email": st.session_state.candidate["email"]
                 },
                 timeout=5
             )
