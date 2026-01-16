@@ -6,11 +6,10 @@ def load_styles():
 
     .stApp {
         background: #f7f9fc;
-        opacity:0.5;
     }
 
     [data-testid="stChatMessage"] {
-        background: white;
+        background: none;
         
         border-radius: 12px;
         padding: 12px;

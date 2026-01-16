@@ -3,22 +3,10 @@ import time
 import json
 import re
 from datetime import datetime
+import requests
 from styles import load_styles
 from llm import generate_technical_questions
-import os
-import requests
-
-def send_email(candidate):
-    url = os.getenv("MAKE_WEBHOOK") or "https://hook.eu1.make.com/wk9cdh1cegely8ujx241eit4631p88ah"
-    try:
-        requests.post(url, json={
-            "name": candidate.get("name"),
-            "email": candidate.get("email"),
-            "role": candidate.get("role")
-        })
-    except:
-        pass
-
+from time_utils import start_timer, stop_timer, get_total_time
 
 # ---------------------------
 # Page Setup
@@ -47,43 +35,41 @@ def is_valid_text(text):
     return bool(re.match(r"^[A-Za-z .-]{2,}$", text.strip()))
 
 # ---------------------------
-# Session State
+# Session State Initialization
 # ---------------------------
-if "stage" not in st.session_state:
-    st.session_state.stage = "name"
+defaults = {
+    "stage": "name",
+    "messages": [],
+    "waiting_for_reply": False,
+    "pending_reply": "",
+    "current_q": 0,
+    "tech_questions": [],
+    "tech_loading": False,
+    "completed": False,
+    "tech_timings": [],
+    "technical_answers": []
+}
+
+for k, v in defaults.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
 
 if "candidate" not in st.session_state:
     st.session_state.candidate = {
         "name": "", "email": "", "phone": "",
         "location": "", "experience": "",
-        "role": "", "tech_stack": ""
+        "role": "", "tech_stack": "",
+        "confidence": "", "feedback": ""
     }
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-if "waiting_for_reply" not in st.session_state:
-    st.session_state.waiting_for_reply = False
-
-if "pending_reply" not in st.session_state:
-    st.session_state.pending_reply = ""
-
-if "tech_questions" not in st.session_state:
-    st.session_state.tech_questions = []
-
-if "current_q" not in st.session_state:
-    st.session_state.current_q = 0
-
-if "completed" not in st.session_state:
-    st.session_state.completed = False
-
-if "tech_loading" not in st.session_state:
-    st.session_state.tech_loading = False
 
 # ---------------------------
 # Interview Flow
 # ---------------------------
-stages = ["name", "email", "phone", "location", "experience", "role", "tech_stack", "technical", "end"]
+stages = [
+    "name", "email", "phone", "location",
+    "experience", "role", "tech_stack",
+    "technical", "confidence", "feedback", "end"
+]
 
 questions = {
     "name": "What is your full name?",
@@ -92,17 +78,19 @@ questions = {
     "location": "Where are you currently located?",
     "experience": "How many years of experience do you have?",
     "role": "What position are you applying for?",
-    "tech_stack": "Please list your tech stack (languages, frameworks, tools)."
+    "tech_stack": "Please list your tech stack (languages, frameworks, tools).",
+    "confidence": "On a scale of 1–5, how confident are you with your technical answers?",
+    "feedback": "How was your experience with TalentScout? (Optional)"
 }
 
 def go_next():
-    idx = stages.index(st.session_state.stage)
-    if idx + 1 < len(stages):
-        st.session_state.stage = stages[idx + 1]
+    st.session_state.stage = stages[stages.index(st.session_state.stage) + 1]
 
-def save_candidate(candidate):
-    candidate_copy = candidate.copy()
-    candidate_copy["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+def save_candidate():
+    record = st.session_state.candidate.copy()
+    record["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    record["technical_interview"] = st.session_state.technical_answers
+    record["total_technical_time_seconds"] = get_total_time()
 
     try:
         with open("data/candidates.json", "r") as f:
@@ -110,21 +98,35 @@ def save_candidate(candidate):
     except:
         data = []
 
-    data.append(candidate_copy)
+    data.append(record)
 
     with open("data/candidates.json", "w") as f:
         json.dump(data, f, indent=4)
 
 def finalize_interview():
     if not st.session_state.completed:
-        save_candidate(st.session_state.candidate)
-        send_email(st.session_state.candidate)   # <-- this line sends email
+        save_candidate()
+
+        # Send email trigger to Make
+        try:
+            requests.post(
+                "https://hook.eu1.make.com/wk9cdh1cegely8ujx241eit4631p88ah",
+                json={
+                    "name": st.session_state.candidate["name"],
+                    "email": st.session_state.candidate["email"],
+                    "role": st.session_state.candidate["role"]
+                },
+                timeout=5
+            )
+        except Exception as e:
+            print("Make webhook failed:", e)
+
         st.session_state.completed = True
         st.session_state.stage = "end"
 
 
 # ---------------------------
-# Display Chat
+# Display Chat History
 # ---------------------------
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
@@ -150,7 +152,10 @@ if st.session_state.waiting_for_reply:
 # Initial Greeting
 # ---------------------------
 if len(st.session_state.messages) == 0:
-    intro = "Hello! I'm TalentScout, your AI hiring assistant.\n\n" + questions["name"]
+    intro = (
+        "Hello! I'm TalentScout, your AI hiring assistant.\n\n"
+        + questions["name"]
+    )
     st.session_state.pending_reply = intro
     st.session_state.waiting_for_reply = True
     st.rerun()
@@ -158,72 +163,82 @@ if len(st.session_state.messages) == 0:
 # ---------------------------
 # User Input
 # ---------------------------
-if not st.session_state.completed:
-    user_input = st.chat_input("Type here...")
-else:
-    user_input = None
+user_input = None if st.session_state.completed else st.chat_input("Type here...")
 
 if user_input:
-    if user_input.lower() in ["exit", "bye", "quit", "done"]:
+    if user_input.lower() in ["exit", "quit", "bye"]:
         finalize_interview()
-        st.session_state.pending_reply = "Thank you for your time. Our recruitment team will contact you soon."
+        st.session_state.pending_reply = (
+            "Thank you for your time. Our recruitment team will contact you soon."
+        )
         st.session_state.waiting_for_reply = True
         st.rerun()
 
     st.session_state.messages.append({"role": "user", "content": user_input})
-
     reply = None
 
-    # Technical interview mode
+    # ---------------------------
+    # Technical Interview Stage
+    # ---------------------------
     if st.session_state.stage == "technical":
-        if st.session_state.tech_loading:
-            tech = st.session_state.candidate["tech_stack"]
-            st.session_state.tech_questions = generate_technical_questions(tech)
-            st.session_state.current_q = 0
-            st.session_state.tech_loading = False
-            reply = st.session_state.tech_questions[0]
-        else:
-            st.session_state.current_q += 1
-            if st.session_state.current_q < len(st.session_state.tech_questions):
-                reply = st.session_state.tech_questions[st.session_state.current_q]
-            else:
-                finalize_interview()
-                reply = "Thank you for completing the technical interview. We will be in touch."
 
+        current_question = st.session_state.tech_questions[st.session_state.current_q]
+        stop_timer(current_question)
+
+        st.session_state.technical_answers.append({
+            "question": current_question,
+            "answer": user_input
+        })
+
+        st.session_state.current_q += 1
+
+        if st.session_state.current_q < len(st.session_state.tech_questions):
+            reply = st.session_state.tech_questions[st.session_state.current_q]
+            start_timer()
+        else:
+            go_next()
+            reply = questions["confidence"]
+
+    # ---------------------------
+    # Validation + Normal Flow
+    # ---------------------------
     else:
-        # Validation
-        if st.session_state.stage == "email" and not is_valid_email(user_input):
-            reply = "Please enter a valid email address."
-        elif st.session_state.stage == "phone" and not is_valid_phone(user_input):
-            reply = "Please enter a valid phone number."
-        elif st.session_state.stage == "experience" and not is_valid_experience(user_input):
-            reply = "Please enter your years of experience as a number."
-        elif st.session_state.stage in ["role", "location"] and not is_valid_text(user_input):
-            reply = f"Please enter a valid {st.session_state.stage}."
-        else:
-            if st.session_state.stage in st.session_state.candidate:
-                st.session_state.candidate[st.session_state.stage] = user_input
-                go_next()
+        stage = st.session_state.stage
 
-            if st.session_state.stage in questions:
-                reply = questions[st.session_state.stage]
-            elif st.session_state.stage == "technical":
-                # Show loading message once
+        if stage == "email" and not is_valid_email(user_input):
+            reply = "Please enter a valid email address."
+        elif stage == "phone" and not is_valid_phone(user_input):
+            reply = "Please enter a valid phone number."
+        elif stage == "experience" and not is_valid_experience(user_input):
+            reply = "Please enter years of experience as a number."
+        elif stage in ["role", "location"] and not is_valid_text(user_input):
+            reply = f"Please enter a valid {stage}."
+        else:
+            st.session_state.candidate[stage] = user_input
+
+            if stage == "tech_stack":
                 st.session_state.messages.append({
                     "role": "assistant",
                     "content": "Please wait while we prepare your technical interview questions..."
                 })
 
-                # Generate questions
-                tech = st.session_state.candidate["tech_stack"]
-                st.session_state.tech_questions = generate_technical_questions(tech)
+                st.session_state.tech_questions = generate_technical_questions(user_input)
                 st.session_state.current_q = 0
-
-                # Ask first technical question
+                go_next()
                 reply = st.session_state.tech_questions[0]
+                start_timer()
 
+            elif stage == "feedback":
+                finalize_interview()
+                reply = (
+                    "Thank you for your time. Our recruitment team will contact you soon."
+                )
 
-    st.session_state.pending_reply = reply
-    st.session_state.waiting_for_reply = True
-    st.rerun()
+            else:
+                go_next()
+                reply = questions.get(st.session_state.stage)
 
+    if reply:
+        st.session_state.pending_reply = reply
+        st.session_state.waiting_for_reply = True
+        st.rerun()

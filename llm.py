@@ -1,33 +1,52 @@
-import os
 import json
 from openai import OpenAI
-from dotenv import load_dotenv
 
-load_dotenv()
+client = OpenAI()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-def generate_technical_questions(tech_stack):
+def generate_technical_questions(tech_stack: str):
     prompt = f"""
 You are a technical interviewer.
 
-The candidate has the following tech stack:
+Generate 5 technical interview questions based on the following tech stack:
 {tech_stack}
 
-Generate 1 technical interview questions per technology.
-Return ONLY a JSON list of strings.
-
-Example:
+IMPORTANT:
+- Return ONLY a valid JSON array of strings.
+- Do NOT add explanations.
+- Do NOT use markdown.
+- Example format:
 [
- "What is a Python list?",
- "Explain SQL joins",
- "What is Streamlit?"
+  "Question 1?",
+  "Question 2?"
 ]
 """
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}]
+        messages=[
+            {"role": "system", "content": "You are a strict JSON generator."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.3
     )
 
-    return json.loads(response.choices[0].message.content)
+    raw_output = response.choices[0].message.content.strip()
+
+    try:
+        questions = json.loads(raw_output)
+
+        # Safety check
+        if not isinstance(questions, list):
+            raise ValueError("JSON is not a list")
+
+        return questions
+
+    except Exception:
+        # ✅ Fallback (never crash interview)
+        return [
+            f"Explain your experience with {tech_stack}.",
+            f"What challenges have you faced while working with {tech_stack}?",
+            f"How do you debug issues in {tech_stack} projects?",
+            f"Explain a real-world project you built using {tech_stack}.",
+            f"What best practices do you follow when working with {tech_stack}?"
+        ]
