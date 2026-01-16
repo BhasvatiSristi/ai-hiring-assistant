@@ -86,21 +86,31 @@ questions = {
 def go_next():
     st.session_state.stage = stages[stages.index(st.session_state.stage) + 1]
 
+import os
+
 def save_candidate():
     record = st.session_state.candidate.copy()
     record["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     record["technical_interview"] = st.session_state.technical_answers
     record["total_technical_time_seconds"] = get_total_time()
 
-    try:
-        with open("data/candidates.json", "r") as f:
-            data = json.load(f)
-    except:
+    # ✅ Ensure data directory exists (CRITICAL for Streamlit Cloud)
+    os.makedirs("data", exist_ok=True)
+
+    file_path = "data/candidates.json"
+
+    if os.path.exists(file_path):
+        with open(file_path, "r") as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                data = []
+    else:
         data = []
 
     data.append(record)
 
-    with open("data/candidates.json", "w") as f:
+    with open(file_path, "w") as f:
         json.dump(data, f, indent=4)
 
 def finalize_interview():
