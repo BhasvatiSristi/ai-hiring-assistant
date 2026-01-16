@@ -42,7 +42,7 @@ IMPORTANT:
         return questions
 
     except Exception:
-        # ✅ Fallback (never crash interview)
+        # Fallback (never crash interview)
         return [
             f"Explain your experience with {tech_stack}.",
             f"What challenges have you faced while working with {tech_stack}?",

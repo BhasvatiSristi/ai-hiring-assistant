@@ -1,134 +1,125 @@
-# TalentScout – AI Hiring Assistant
+# 🤖 TalentScout – AI Hiring Assistant
 
-## Project Overview  
-TalentScout is an AI-powered hiring assistant designed to automate the initial screening of technology candidates. It collects candidate information, dynamically generates technical interview questions based on the candidate’s tech stack, and stores responses securely for recruiter review. The system uses Large Language Models (LLMs) to simulate a real interview experience in a structured, context-aware way.
-
-This project demonstrates prompt engineering, conversation state management, data handling, and LLM integration in a real-world hiring use case.
+TalentScout is an intelligent hiring assistant chatbot built to automate the **initial screening of candidates** for technical roles.  
+It gathers candidate details, conducts a **context-aware technical interview**, records **time-based behavioral signals**, and notifies candidates via **automated email** upon completion.
 
 ---
 
-## Key Features  
+## 🚀 Features
 
-- Conversational hiring assistant built with Streamlit  
-- Collects candidate details (name, email, phone, role, location, experience, tech stack)  
-- Validates email, phone number, and experience inputs  
-- Dynamically generates technical interview questions using LLMs  
-- One-by-one interview flow (real interviewer style)  
-- Maintains conversation state using session memory  
-- Securely stores candidate data locally in JSON format  
-- GDPR-friendly data handling  
-- Clean and intuitive UI  
+### ✅ Candidate Information Collection
+- Full Name  
+- Email Address (validated)  
+- Phone Number (validated)  
+- Current Location  
+- Years of Experience  
+- Desired Role  
+- Tech Stack  
+
+### 🧠 Technical Interview (LLM-powered)
+- Dynamically generates **3–5 technical questions** based on the candidate’s tech stack  
+- Questions are asked **one-by-one** for a natural interview flow  
+- Maintains conversation context throughout the interview  
+
+### ⏱️ Time-Based Behavioral Signal
+- Tracks **time taken per technical question**
+- Stores:
+  - Individual response times
+  - Total technical interview time
+- Avoids unfair auto-scoring while still providing **useful recruiter insights**
+
+### 📝 Candidate Feedback
+- Self-reported confidence score (1–5)
+- Optional feedback on interview experience
+
+### 📧 Automated Email Notification
+- Sends a **“Interview Completed”** email to the candidate
+- Implemented using **Make (Integromat)** webhook + Gmail
+- Scenario runs in **Always-On (Instant)** mode
+
+### 🔐 Data Privacy
+- Uses simulated/local data storage
+- No hardcoded API keys
+- No automated decision-making on candidate outcomes
+- GDPR-aware design
 
 ---
 
-## Tech Stack  
-
+## 🛠️ Tech Stack
 - Python  
-- Streamlit (Frontend UI)  
-- OpenAI GPT (LLM)  
-- JSON (Data storage)  
-- python-dotenv (API key management)  
+- Streamlit  
+- Large Language Models (LLM)  
+- Make (Integromat)  
+- JSON  
 
 ---
 
-## How It Works  
+## 📁 Project Structure
 
-Candidate → Streamlit UI → Session State → LLM → Technical Questions → JSON Storage  
-
-1. Candidate interacts with the chatbot via Streamlit UI  
-2. Session state stores the conversation stage and candidate data  
-3. When the tech stack is entered, the LLM generates tailored interview questions  
-4. Questions are asked one-by-one to simulate a real interview  
-5. Candidate data is stored in a local JSON file for recruiter review  
-
----
-
-## Prompt Engineering  
-
-Two types of prompts are used:
-
-System Role Prompt  
-The LLM is instructed to act as a professional technical interviewer. It is guided to generate structured, relevant, and difficulty-appropriate questions.
-
-Technical Question Prompt  
-The model receives the candidate’s tech stack and is instructed to return 3–5 interview questions per technology in JSON format. This allows the system to ask questions one-by-one and maintain interview flow.
+TalentScout/
+├── app.py  
+├── llm.py  
+├── time_utils.py  
+├── styles.py  
+├── data/
+│   └── candidates.json  
+├── README.md  
+└── .gitignore  
 
 ---
 
-## Data Privacy & GDPR Compliance  
+## ⚙️ Installation & Setup
 
-TalentScout follows GDPR principles:
-
-- Only necessary hiring information is collected  
-- Data is stored locally and not shared with third parties  
-- No personal information is sent to the LLM  
-- Candidates can request deletion of their data  
-- Data is used strictly for recruitment demonstration purposes  
-
----
-
-## Installation  
-
-1. Clone the repository  
 ```bash
-git clone <https://github.com/BhasvatiSristi/ai-hiring-assistant>
-cd TalentScout-AI
-```
-
-2. Create virtual environment  
-```bash
+git clone https://github.com/your-username/TalentScout.git
+cd TalentScout
 python -m venv venv
-venv\Scripts\activate
-```
-
-3. Install dependencies  
-```bash
+source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-```
-
-4. Add API key  
-Create a `.env` file  
-```
-OPENAI_API_KEY=your_openai_key_here
-```
-
-5. Run the app  
-```bash
 streamlit run app.py
 ```
 
 ---
 
-## Usage  
-
-1. Start the Streamlit app  
-2. Enter your personal and professional details  
-3. Provide your tech stack  
-4. Answer technical questions generated by the AI  
-5. The interview concludes and data is saved to data/candidates.json  
+## 🔁 Email Automation (Make)
+- Custom Webhook triggers after interview completion
+- Gmail module sends confirmation email
+- Scenario runs in **Immediately as data arrives** mode
 
 ---
 
-## Challenges & Solutions  
-
-Managing conversation flow → Implemented a stage-based state machine  
-LLM dumping all questions → Converted LLM output into a question queue  
-Avoiding duplicate data → Added completion guards  
-Privacy concerns → Stored data locally and avoided sending personal info to LLM
-Preventing invalid inputs → Added email, phone, and numeric validation    
+## 🧠 Prompt Design
+- Prompts are crafted to:
+  - Generate relevant technical questions
+  - Match the declared tech stack
+  - Maintain clarity and consistency
 
 ---
 
-## Demo  
-
-This short demo video shows the full interaction, dynamic question generation, and data storage.  
-(Link will be shared soon)
+## 🧪 Data Handling
+- Stored locally in `candidates.json`
+- Includes:
+  - Candidate profile
+  - Technical Q&A
+  - Time-based metrics
+  - Confidence score & feedback
 
 ---
 
-## Future Enhancements  
+## 🎥 Demo
+A short demo showcases:
+- Full interview flow
+- Technical question generation
+- Timing logic
+- Automated email trigger
 
-- Multilingual interview support  
-- Candidate sentiment analysis  
-- Cloud deployment  
-- Recruiter dashboard  
+---
+
+## 🏁 Conclusion
+TalentScout demonstrates practical use of LLMs with:
+- Ethical evaluation
+- Modular design
+- Real-world automation
+- Clean user experience
+
+💡 Tip: You can type `exit` anytime during the interview to end the session.
