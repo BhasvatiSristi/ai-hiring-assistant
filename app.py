@@ -12,7 +12,7 @@ from time_utils import start_timer, stop_timer, get_total_time
 # Page Setup
 # ---------------------------
 st.set_page_config(page_title="TalentScout – Hiring Assistant", layout="wide")
-load_styles()
+#load_styles()
 st.title("🤖 TalentScout – Hiring Assistant")
 
 # ---------------------------
