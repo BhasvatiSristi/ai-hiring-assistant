@@ -3,12 +3,28 @@ import time
 import json
 import re
 from datetime import datetime
+from styles import load_styles
 from llm import generate_technical_questions
+import os
+import requests
+
+def send_email(candidate):
+    url = os.getenv("MAKE_WEBHOOK") or "https://hook.eu1.make.com/wk9cdh1cegely8ujx241eit4631p88ah"
+    try:
+        requests.post(url, json={
+            "name": candidate.get("name"),
+            "email": candidate.get("email"),
+            "role": candidate.get("role")
+        })
+    except:
+        pass
+
 
 # ---------------------------
 # Page Setup
 # ---------------------------
 st.set_page_config(page_title="TalentScout – Hiring Assistant", layout="wide")
+load_styles()
 st.title("🤖 TalentScout – Hiring Assistant")
 
 # ---------------------------
@@ -102,8 +118,10 @@ def save_candidate(candidate):
 def finalize_interview():
     if not st.session_state.completed:
         save_candidate(st.session_state.candidate)
+        send_email(st.session_state.candidate)   # <-- this line sends email
         st.session_state.completed = True
         st.session_state.stage = "end"
+
 
 # ---------------------------
 # Display Chat
@@ -208,3 +226,4 @@ if user_input:
     st.session_state.pending_reply = reply
     st.session_state.waiting_for_reply = True
     st.rerun()
+
